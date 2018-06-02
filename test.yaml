@@ -1,0 +1,11 @@
+- hosts: etcd
+
+  tasks: 
+   - name: copy admin config to home 
+     shell: echo hello
+     delegate_to:  "{{ groups['etcd'][0]}}"
+     register: copy
+     run_once: true
+   - name: excute ping on two hosts 
+     shell: echo hello 
+     delegate_to:  "{{ groups['etcd'][0-1,2]}}"

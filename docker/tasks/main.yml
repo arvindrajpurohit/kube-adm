@@ -1,0 +1,23 @@
+---
+# tasks file for docker
+##- command: yum-complete-transaction --cleanup-only
+#- command: sudo yum remove docker*
+   
+- name: remove latest  docker
+  when: ansible_os_family == "RedHat"
+  yum:
+    name: docker*
+    state: absent
+
+- command: sleep 30 
+
+- name: install docker
+  when: ansible_os_family == "RedHat"
+  yum:
+    name: docker
+    state: latest
+- name: starting docker service 
+  systemd:
+    name: docker
+    state: started
+    enabled: True    

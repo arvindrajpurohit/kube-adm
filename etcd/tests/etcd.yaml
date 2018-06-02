@@ -1,0 +1,7 @@
+# Install etcd
+- hosts: etcd
+  roles:
+   -   etcd
+  tags:
+    - etcd
+

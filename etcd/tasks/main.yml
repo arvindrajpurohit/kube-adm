@@ -1,0 +1,37 @@
+
+# tasks file for etcd
+
+---
+- name: Adding Kubernetes repository
+  when: ansible_os_family == "RedHat"
+  yum_repository:
+    name: Kubernetes
+    description: Kubernetes repo
+    file: kubernetes
+    baseurl: http://cbs.centos.org/repos/virt7-docker-common-release/x86_64/os/
+    enabled: yes
+    gpgcheck: no
+  register:  kuberepo
+
+- name: create ssl cert dir
+  file: path={{ cert_dir }} state=directory
+  register: master_ssl_dir
+
+- name: Install etcd
+  when: ansible_os_family == "RedHat"
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+       - etcd 
+       - openssl
+
+- name: Write etcd config file
+  template: src=etcd.conf.j2 dest=/etc/etcd/etcd.conf
+  register: etc_config
+- name: starting etcd service   
+  systemd:
+    name: etcd
+    state: started
+    enabled: True
+

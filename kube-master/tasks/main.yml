@@ -1,0 +1,101 @@
+---
+ 
+- name: Adding Kubernetes repository
+  when: ansible_os_family == "RedHat"
+  yum_repository:
+    name: Kubernetes
+    description: Kubeadm-repo
+    file: kubernetes
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+    enabled: yes
+    gpgcheck: no
+  register:  kube-admrepo
+
+- name : enable kube-admrepo
+  shell: yum-config-manager --enable kube-admrepo| yum clean all
+    
+- name: install kube-adm 
+  yum:
+    name: "{{ item }}"
+  with_items: 
+      - kubelet-1.9.0 
+      - kubeadm-1.9.0
+      - kubectl-1.9.0
+            
+
+- name: copy config files
+  template: src=config.yaml.j2 dest=/etc/config.yaml
+  register: kube_config   
+
+- command: sudo kubeadm reset 
+- command: sudo setenforce 0
+- command: sudo sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
+- command: sudo echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+ 
+- name: kube-adm init 
+  command: sudo kubeadm init --config=/etc/config.yaml  --ignore-preflight-errors=ExternalEtcdVersion
+  run_once: true
+  delegate_to: "{{ groups['etcd'][0] }}"        
+
+- name: slurp CA certificate from ansible host
+  slurp: src=/etc/kubernetes/pki/{{ item }}
+  with_items:
+    - apiserver.crt
+    - apiserver.key
+    - apiserver-kubelet-client.crt
+    - apiserver-kubelet-client.key
+    - ca.crt
+    - ca.key
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+    - front-proxy-client.crt
+    - front-proxy-client.key
+    - sa.key
+    - sa.pub
+  register: pki_certs
+  run_once: true
+  delegate_to: "{{ groups['etcd'][0] }}"
+
+- name: write CA certificate from ansible host to disk
+  copy: dest=/etc/kubernetes/pki/{{ item.item }} content="{{ item.content | b64decode }}"
+  register: openssl_cert
+  with_items: "{{ pki_certs.results }}"
+  delegate_to:  "{{ groups['etcd'][1] }}"
+
+- name: write CA certificate from ansible host to disk
+  copy: dest=/etc/kubernetes/pki/{{ item.item }} content="{{ item.content | b64decode }}"
+  register: openssl_cert
+  with_items: "{{ pki_certs.results }}"
+  delegate_to:  "{{ groups['etcd'][2] }}" 
+
+- name: excute kube-adm on other masters  
+  command: sudo kubeadm init --config=/etc/config.yaml  --ignore-preflight-errors=ExternalEtcdVersion
+  run_once: true
+  delegate_to:  "{{ groups['etcd'][1] }}"
+ 
+- name: excute kube-adm on other masters  
+  command: sudo kubeadm init --config=/etc/config.yaml  --ignore-preflight-errors=ExternalEtcdVersion
+  run_once: true
+  delegate_to:  "{{ groups['etcd'][2] }}"
+  
+    
+
+- name : copy admin config to home 
+  shell: sudo mkdir -p /home/centos/.kube/ | sudo cp -i -n /etc/kubernetes/admin.conf /home/centos/.kube/config | sudo chown $(id -u):$(id -g) /home/centos/.kube/config
+  become_user: centos
+
+- name: deploy weave network in cluster 
+  command: kubectl version | base64 | tr -d '\n'
+  register: result
+  become_user: centos
+
+- command: kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version={{result.stdout}}"
+  become_user: centos
+  run_once: true
+
+#- command:   kubectl create -f https://raw.githubusercontent.com/coreos/flannel/v0.9.0/Documentation/kube-flannel.yml
+  
+- name: taint all master node 
+  command: kubectl taint nodes --all node-role.kubernetes.io/master-
+  become_user: centos
+  

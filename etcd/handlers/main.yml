@@ -1,0 +1,10 @@
+---
+
+- name: reload systemd
+  command: "{{ item }}"
+  with_items:
+     - systemctl --system daemon-reload
+     - systemctl  restart etcd
+  
+
+

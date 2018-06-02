@@ -1,0 +1,11 @@
+---
+# defaults file for etcd
+ETCD_DATA_DIR: /var/lib/etcd/default.etcd
+ELPU_PORT: 2380
+ELCU_PORT: 2379 
+ETCD_INITIAL_CLUSTER_STATE: "new"
+ETCD_INITIAL_CLUSTER_TOKEN: "ab5f20b33aa4"
+etcd_peers_group: etcd
+etcd_peer_url_scheme: https
+cert_dir: /etc/kubernetes/pki/
+

@@ -1,0 +1,14 @@
+# Install etcd
+- hosts: etcd
+  ##become_sudo: yes
+  roles:
+   # -   sslcert
+    #-   etcd
+   # -   docker
+    -   kube-master
+    #-   master 
+  tags:
+    #-   sslcert
+    #-   etcd
+    #-   docker
+    -   kube-master

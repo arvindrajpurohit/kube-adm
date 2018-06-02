@@ -1,0 +1,37 @@
+{% macro etcd_cluster() -%}
+{% for host in groups['etcd'] -%}
+  - http://{{ hostvars[host]['ansible_default_ipv4'].address}}:2379
+  {%- if not loop.last -%},{%- endif -%}
+{%- endfor -%}
+{% endmacro -%}
+ {% set etcd_cluster =etcd_cluster() | replace(",", "\n   " ) %}
+{% macro Internal_IP() -%}
+{% for host in groups['etcd'] -%}
+  - {{ hostvars[host]['ansible_default_ipv4'].address}}
+  {%- if not loop.last -%},{%- endif -%}
+{%- endfor -%}
+{% endmacro -%}
+{% set Internal_IP =Internal_IP() | replace(",", "\n   " ) %}
+{% macro External_IP() -%}
+  {% set pk = groups['etcd'] %}
+  {% for host in pk %}
+- {{ host }}
+  {%- if not loop.last -%},{%- endif -%}
+{%- endfor -%}
+{% endmacro -%}
+{% set External_IP=External_IP() | replace(",",          "\n   " ) %}
+--- 
+api: 
+  advertiseAddress: {{ ansible_default_ipv4.address }},127.0.0.1
+apiServerExtraArgs: 
+  apiserver-count: "3"
+apiVersion: kubeadm.k8s.io/v1alpha1
+etcd: 
+  endpoints: 
+   {{ etcd_cluster}}
+kind: MasterConfiguration
+apiServerCertSANs: 
+   {{ Internal_IP }}
+ {{ External_IP }}
+   - test.roambee.com
+podSubnet: 10.0.0.0/24
